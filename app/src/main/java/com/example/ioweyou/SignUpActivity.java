@@ -59,7 +59,7 @@ public class SignUpActivity extends AppCompatActivity {
         // Send data to Flask backend in background thread
         new Thread(() -> {
             try {
-                URL url = new URL("http://10.0.2.2:5000/register");
+                URL url = new URL("https://ioweyou-sk05.onrender.com/register"); // Update with your production URL
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");

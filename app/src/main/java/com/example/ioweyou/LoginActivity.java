@@ -29,7 +29,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login); // assuming you're still using activity_login.xml
+        setContentView(R.layout.activity_login);
 
         // Initialize EditText fields
         etEmail = findViewById(R.id.et_email);
@@ -39,7 +39,7 @@ public class LoginActivity extends AppCompatActivity {
         // Initialize SharedPreferences
         sharedPreferences = getSharedPreferences("MyAppPreferences", MODE_PRIVATE);
 
-        // Check if "Remember Me" is selected and auto-login
+        // Check if "Remember Me" is selected and auto-fill
         if (sharedPreferences.getBoolean("rememberMe", false)) {
             String savedEmail = sharedPreferences.getString("email", "");
             String savedPassword = sharedPreferences.getString("password", "");
@@ -62,7 +62,7 @@ public class LoginActivity extends AppCompatActivity {
         // Send login credentials to Flask backend
         new Thread(() -> {
             try {
-                URL url = new URL("http://10.0.2.2:5000/login"); // Adjust to your backend URL
+                URL url = new URL("https://ioweyou-sk05.onrender.com/login");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -120,7 +120,7 @@ public class LoginActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("LoginActivity", "Login failed", e);
-                runOnUiThread(() -> Toast.makeText(this, "Logged in", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify  # type: ignore
 from flask_cors import CORS  # type: ignore
 from pymongo import MongoClient  # type: ignore
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -42,6 +43,7 @@ def login():
         return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
 
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)  # or just host='0.0.0.0'
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
