@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="splash_logo_desc">Splash Logo</string>
+    <string name="welcome_message">Welcome to IOU App</string>
+    <string name="app_name">I Owe You</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="log_in">Log In</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="money_transfer_desc">Money Transfer Illustration</string>
+    <string name="add_transaction">Add Transaction</string>
+    <string name="add_contact">Add Contact</string>
+    <string name="join_group">Join Group</string>
+    <string name="create_group">Create Group</string>
+    <string name="search_contact_group">Search contact or group</string>
+    <string name="money_transfer_image">Illustration of money transfer</string>
+    <string name="welcome">Welcome</string>
+    <string name="back">Back!</string>
+    <string name="email_address">Email Address</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="remember_me">Remember me</string>
+    <string name="login">Log In</string>
+    <string name="sign_up_prompt">Don’t Have An Account? <u>Sign Up</u></string>
+    <string name="bg_desc">Background illustration</string>
+    <string name="back_arrow_desc">Back Arrow</string>
+    <string name="logo_desc">Splash Logo</string>
+    <string name="lets_get">Lets Get</string>
+    <string name="started">Started</string>
+    <string name="create">Create An</string>
+    <string name="acc">Account!</string>
+    <string name="accessibility_create">Create account title</string>
+    <string name="accessibility_account">Account subtitle</string>
+
+</resources>

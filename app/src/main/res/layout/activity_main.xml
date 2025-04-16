@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/subtitle"
+        android:layout_width="111dp"
+        android:layout_height="122dp"
+        android:layout_marginTop="84dp"
+        android:layout_marginEnd="108dp"
+        android:fontFamily="@font/ar_one_sans_medium"
+        android:text="@string/app_name"
+        android:textAlignment="center"
+        android:textColor="@color/white"
+        android:textSize="34sp"
+        android:typeface="normal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="TextSizeCheck" />
+
+    <TextView
+        android:id="@+id/get"
+        android:layout_width="366dp"
+        android:layout_height="164dp"
+        android:layout_marginStart="36dp"
+        android:layout_marginTop="208dp"
+        android:fontFamily="@font/raleway_medium"
+        android:text="@string/lets_get"
+        android:textAlignment="center"
+        android:textColor="@color/white"
+        android:textSize="48sp"
+        android:typeface="normal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="TextSizeCheck,VisualLintOverlap" />
+
+    <TextView
+        android:id="@+id/started"
+        android:layout_width="366dp"
+        android:layout_height="164dp"
+        android:layout_marginStart="36dp"
+        android:layout_marginTop="260dp"
+        android:fontFamily="@font/raleway_medium"
+        android:text="@string/started"
+        android:textAlignment="center"
+        android:textColor="@color/purple_primary"
+        android:textSize="48sp"
+        android:typeface="normal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="TextSizeCheck" />
+
+    <Button
+        android:id="@+id/btnSignUp"
+        android:layout_width="190dp"
+        android:layout_height="110dp"
+        android:layout_marginEnd="108dp"
+        android:layout_marginBottom="248dp"
+        android:backgroundTint="@color/purple_primary"
+        android:insetLeft="20dp"
+        android:insetTop="20dp"
+        android:insetRight="20dp"
+        android:insetBottom="40dp"
+        android:padding="10dp"
+        android:text="@string/sign_up"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="191dp"
+        android:layout_height="109dp"
+        android:layout_marginStart="127dp"
+        android:layout_marginEnd="129dp"
+        android:layout_marginBottom="168dp"
+        android:backgroundTint="@color/purple_primary"
+        android:insetLeft="20dp"
+        android:insetTop="20dp"
+        android:insetRight="20dp"
+        android:insetBottom="40dp"
+        android:padding="1dp"
+        android:text="@string/log_in"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.388"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="178dp"
+        android:layout_height="118dp"
+        android:layout_marginStart="25dp"
+        android:layout_marginTop="69dp"
+        android:contentDescription="@string/logo_desc"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/logo_no_background" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
