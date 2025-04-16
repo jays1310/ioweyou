@@ -24,21 +24,21 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="VisualLintOverlap" />
 
+    <!-- Money Transfer Image -->
+
+    <!-- Floating Action Button (Main FAB) -->
     <androidx.appcompat.widget.SearchView
         android:id="@+id/searchView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="62dp"
+        android:layout_marginTop="84dp"
         android:background="@drawable/search_bar_bg"
         android:queryHint="@string/search_contact_group"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Money Transfer Image -->
-
-    <!-- Floating Action Button (Main FAB) -->
     <ImageView
         android:id="@+id/img_money_transfer"
         android:layout_width="452dp"
@@ -113,5 +113,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/logo_no_background" />
+
+    <ImageView
+        android:id="@+id/imageView7"
+        android:layout_width="84dp"
+        android:layout_height="68dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="5dp"
+        android:contentDescription="@string/settings"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/settings"
+        android:onClick="showSettingsMenu"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

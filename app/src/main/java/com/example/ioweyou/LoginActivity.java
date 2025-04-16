@@ -31,39 +31,33 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // Initialize EditText fields
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
         rememberMeCheckBox = findViewById(R.id.cb_remember_me);
-
-        // Initialize SharedPreferences
         sharedPreferences = getSharedPreferences("MyAppPreferences", MODE_PRIVATE);
 
-        // Check if "Remember Me" is selected and auto-fill
         if (sharedPreferences.getBoolean("rememberMe", false)) {
-            String savedEmail = sharedPreferences.getString("email", "");
-            String savedPassword = sharedPreferences.getString("password", "");
-            etEmail.setText(savedEmail);
-            etPassword.setText(savedPassword);
+            etEmail.setText(sharedPreferences.getString("email", ""));
+            etPassword.setText(sharedPreferences.getString("password", ""));
             rememberMeCheckBox.setChecked(true);
         }
     }
 
-    // Called when login button is clicked
     public void loginUser(View view) {
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
         if (email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(LoginActivity.this, "Please enter both email and password.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please enter both email and password.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Send login credentials to Flask backend
         new Thread(() -> {
             try {
                 URL url = new URL("https://ioweyou-sk05.onrender.com/login");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
@@ -88,31 +82,32 @@ public class LoginActivity extends AppCompatActivity {
                         String message = jsonResponse.getString("message");
 
                         if (responseCode == 200 && "success".equals(status)) {
-                            // Save credentials if "Remember Me" is checked
+                            // Store user_email in shared preferences
+                            SharedPreferences.Editor iouEditor = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit();
+                            iouEditor.putString("user_email", email);
+                            iouEditor.apply();
+
+                            // Optionally remember login credentials
+                            SharedPreferences.Editor editor = sharedPreferences.edit();
                             if (rememberMeCheckBox.isChecked()) {
-                                SharedPreferences.Editor editor = sharedPreferences.edit();
                                 editor.putBoolean("rememberMe", true);
                                 editor.putString("email", email);
                                 editor.putString("password", password);
-                                editor.apply();
                             } else {
-                                // Clear credentials if "Remember Me" is not checked
-                                SharedPreferences.Editor editor = sharedPreferences.edit();
-                                editor.putBoolean("rememberMe", false);
-                                editor.remove("email");
-                                editor.remove("password");
-                                editor.apply();
+                                editor.clear();
                             }
+                            editor.apply();
 
-                            Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
-                            startActivity(new Intent(LoginActivity.this, DashboardActivity.class));
+                            Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show();
+                            Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+                            startActivity(intent);
                             finish();
                         } else {
-                            Toast.makeText(LoginActivity.this, message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                         }
                     } catch (Exception e) {
                         Log.e("LoginActivity", "Error parsing response", e);
-                        Toast.makeText(LoginActivity.this, "Unexpected response", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Unexpected response", Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -120,21 +115,17 @@ public class LoginActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("LoginActivity", "Login failed", e);
-                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
 
-    // Called when "Don't have an account? Sign Up" is clicked
     public void openSignUp(View view) {
-        Intent intent = new Intent(LoginActivity.this, SignUpActivity.class);
-        startActivity(intent);
+        startActivity(new Intent(this, SignUpActivity.class));
     }
 
-    // Custom back button in UI
     public void goBackToMain(View view) {
-        Intent intent = new Intent(this, MainActivity.class);
-        startActivity(intent);
-        finish(); // Optional: close the current activity
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 }

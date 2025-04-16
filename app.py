@@ -46,6 +46,39 @@ def login():
     else:
         return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
+@app.route('/create_group', methods=['POST'])
+def create_group():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    group_id = str(uuid.uuid4())[:8]
+    group = {"group_id": group_id, "members": [email]}
+    db.groups.insert_one(group)
+
+    return jsonify({"message": "Group created", "group_id": group_id}), 200
+
+@app.route('/join_group', methods=['POST'])
+def join_group():
+    data = request.get_json()
+    email = data.get('email')
+    group_id = data.get('group_id')
+
+    if not email or not group_id:
+        return jsonify({'error': 'Email and group_id are required'}), 400
+
+    result = db.groups.update_one(
+        {"group_id": group_id},
+        {"$addToSet": {"members": email}}
+    )
+
+    if result.matched_count == 0:
+        return jsonify({"error": "Group not found"}), 404
+
+    return jsonify({"message": "Joined group"}), 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

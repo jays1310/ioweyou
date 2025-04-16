@@ -1,6 +1,7 @@
 package com.example.ioweyou;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -29,18 +30,23 @@ public class SignUpActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_signup);
 
-        TextInputLayout usernameLayout = findViewById(R.id.usernameInputLayout);
-        TextInputLayout emailLayout = findViewById(R.id.emailInputLayout);
-        TextInputLayout passwordLayout = findViewById(R.id.passwordInputLayout);
-        TextInputLayout confirmPasswordLayout = findViewById(R.id.confirmPasswordInput);
+        usernameInput = getInputEditText(R.id.usernameInputLayout);
+        emailInput = getInputEditText(R.id.emailInputLayout);
+        passwordInput = getInputEditText(R.id.passwordInputLayout);
+        confirmPasswordInput = getInputEditText(R.id.confirmPasswordInput);
+    }
 
-        usernameInput = usernameLayout.getEditText();
-        emailInput = emailLayout.getEditText();
-        passwordInput = passwordLayout.getEditText();
-        confirmPasswordInput = confirmPasswordLayout.getEditText();
+    private EditText getInputEditText(int layoutId) {
+        TextInputLayout layout = findViewById(layoutId);
+        return layout != null ? layout.getEditText() : null;
     }
 
     public void registerUser(View view) {
+        if (usernameInput == null || emailInput == null || passwordInput == null || confirmPasswordInput == null) {
+            Toast.makeText(this, "Error loading input fields.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String username = usernameInput.getText().toString().trim();
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
@@ -56,11 +62,12 @@ public class SignUpActivity extends AppCompatActivity {
             return;
         }
 
-        // Send data to Flask backend in background thread
         new Thread(() -> {
             try {
-                URL url = new URL("https://ioweyou-sk05.onrender.com/register"); // Update with your production URL
+                URL url = new URL("https://ioweyou-sk05.onrender.com/register");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
@@ -86,17 +93,20 @@ public class SignUpActivity extends AppCompatActivity {
                         String message = jsonResponse.getString("message");
 
                         if (responseCode == 201 && "success".equals(status)) {
-                            Toast.makeText(SignUpActivity.this, "Registration successful!", Toast.LENGTH_SHORT).show();
-                            startActivity(new Intent(SignUpActivity.this, LoginActivity.class));
+                            // Save user_email to SharedPreferences
+                            SharedPreferences.Editor editor = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit();
+                            editor.putString("user_email", email);
+                            editor.apply();
+
+                            Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
+                            startActivity(new Intent(this, LoginActivity.class));
                             finish();
-                        } else if (responseCode == 409) {
-                            Toast.makeText(SignUpActivity.this, message, Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(SignUpActivity.this, "Registration failed: " + message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Registration failed: " + message, Toast.LENGTH_SHORT).show();
                         }
                     } catch (Exception e) {
                         Log.e("SignUpActivity", "Error parsing response", e);
-                        Toast.makeText(SignUpActivity.this, "Unexpected response", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Unexpected response", Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -104,8 +114,7 @@ public class SignUpActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("SignUpActivity", "Registration failed", e);
-                runOnUiThread(() ->
-                        Toast.makeText(SignUpActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }

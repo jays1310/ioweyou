@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.ioweyou">
 
-    <!-- 👇 Add this line for Internet permission -->
+    <!-- ✅ Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- ✅ Declare telephony is NOT required -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -16,9 +21,7 @@
         android:theme="@style/Theme.IOU"
         android:networkSecurityConfig="@xml/network_security_config">
 
-
-
-        <!-- SplashActivity (Launcher) -->
+        <!-- 🚀 SplashActivity (App entry point) -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
@@ -29,26 +32,19 @@
             </intent-filter>
         </activity>
 
-        <!-- MainActivity (Landing Page with Navigation to Login/SignUp) -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="true" />
+        <!-- 🌟 Landing page -->
+        <activity android:name=".MainActivity" android:exported="true" />
 
-        <!-- LoginActivity (Handles User Login) -->
-        <activity
-            android:name=".LoginActivity"
-            android:exported="true" />
+        <!-- 🔐 Login -->
+        <activity android:name=".LoginActivity" android:exported="true" />
 
-        <!-- SignUpActivity (Handles User Registration) -->
-        <activity
-            android:name=".SignUpActivity"
-            android:exported="true" />
+        <!-- 📝 Sign-up -->
+        <activity android:name=".SignUpActivity" android:exported="true" />
 
-        <!-- DashboardActivity (Main App Dashboard After Login/SignUp) -->
-        <activity
-            android:name=".DashboardActivity"
-            android:exported="true" />
+        <!-- 🏠 Dashboard (after login/signup) -->
+        <activity android:name=".DashboardActivity" android:exported="true" />
 
+        <!-- Optional preloaded fonts -->
         <meta-data
             android:name="preloaded_fonts"
             android:resource="@array/preloaded_fonts" />
