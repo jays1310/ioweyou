@@ -10,6 +10,10 @@ client = MongoClient("mongodb+srv://jaysheth1304:jayashvi1310@cluster0.pwjbm18.m
 db = client["IOUApp"]
 users = db["users"]
 
+@app.route("/")
+def home():
+    return "Flask backend is running!"
+
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
