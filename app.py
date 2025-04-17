@@ -18,6 +18,7 @@ groups = db["groups"]
 def home():
     return "Flask backend is running!"
 
+# ------------------------- User Registration -------------------------
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -38,6 +39,7 @@ def register():
     print("User registered:", {"username": username, "email": email})
     return jsonify({"status": "success", "message": "User registered successfully"}), 201
 
+# ------------------------- User Login -------------------------
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -50,17 +52,23 @@ def login():
     else:
         return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
+# ------------------------- Create Group -------------------------
 @app.route('/create_group', methods=['POST'])
 def create_group():
     try:
         data = request.get_json()
-        email = data.get('email')
+        name = data.get('name')
+        members = data.get('members')  # List of emails
 
-        if not email:
-            return jsonify({'error': 'Email is required'}), 400
+        if not name or not members:
+            return jsonify({'error': 'Group name and members are required'}), 400
 
         group_id = str(uuid.uuid4())[:8]
-        group = {"group_id": group_id, "members": [email]}
+        group = {
+            "group_id": group_id,
+            "name": name,
+            "members": members
+        }
         groups.insert_one(group)
 
         print(f"Group created: {group}")
@@ -70,6 +78,7 @@ def create_group():
         traceback.print_exc()
         return jsonify({"error": "Internal Server Error"}), 500
 
+# ------------------------- Join Group -------------------------
 @app.route('/join_group', methods=['POST'])
 def join_group():
     try:
@@ -95,6 +104,30 @@ def join_group():
         traceback.print_exc()
         return jsonify({"error": "Internal Server Error"}), 500
 
+# ------------------------- Get User's Groups -------------------------
+@app.route("/user_groups", methods=["GET"])
+def get_user_groups():
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    user_groups = groups.find({"members": email})
+    group_data = [{"group_id": g["group_id"], "name": g.get("name", "")} for g in user_groups]
+
+    return jsonify({"groups": group_data}), 200
+
+# ------------------------- Get All Users -------------------------
+@app.route("/all_users", methods=["GET"])
+def all_users():
+    try:
+        all_emails = [user["email"] for user in users.find({}, {"email": 1, "_id": 0})]
+        return jsonify(all_emails), 200
+    except Exception as e:
+        print("Error in /all_users:", e)
+        traceback.print_exc()
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# ------------------------- Run Flask App -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

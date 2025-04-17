@@ -1,6 +1,9 @@
 package com.example.ioweyou;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -15,7 +18,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -28,14 +33,23 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 
 public class DashboardActivity extends AppCompatActivity {
 
@@ -49,6 +63,9 @@ public class DashboardActivity extends AppCompatActivity {
     private boolean isFabMenuOpen = false;
     private Animation rotateOpen, rotateClose, fadeIn, fadeOut;
     private String userEmail;
+
+    private GroupAdapter groupAdapter;
+    private final List<Group> groupList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,7 +116,7 @@ public class DashboardActivity extends AppCompatActivity {
 
         btnCreateGroup.setOnClickListener(v -> {
             closeFabMenu();
-            createGroup();
+            promptGroupName();
         });
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -110,6 +127,13 @@ public class DashboardActivity extends AppCompatActivity {
         searchView.setOnQueryTextFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) searchView.setIconified(true);
         });
+
+        RecyclerView groupRecyclerView = findViewById(R.id.groupRecyclerView);
+        groupRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        groupAdapter = new GroupAdapter(groupList);
+        groupRecyclerView.setAdapter(groupAdapter);
+
+        fetchGroups();
 
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
     }
@@ -159,8 +183,110 @@ public class DashboardActivity extends AppCompatActivity {
     };
 
     private void promptJoinGroup() {
-        String groupId = "demo-group-id"; // Placeholder
-        joinGroup(groupId);
+        EditText input = new EditText(this);
+        input.setHint("Enter Group Code");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Join Group")
+                .setView(input)
+                .setPositiveButton("Join", (dialog, which) -> joinGroup(input.getText().toString().trim()))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void promptGroupName() {
+        EditText input = new EditText(this);
+        input.setHint("Enter Group Name");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Create Group")
+                .setView(input)
+                .setPositiveButton("Next", (dialog, which) -> fetchUserListAndCreateGroup(input.getText().toString().trim()))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void fetchUserListAndCreateGroup(String groupName) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://ioweyou-sk05.onrender.com/all_users");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder result = new StringBuilder();
+                String line;
+                while ((line = in.readLine()) != null) result.append(line);
+                in.close();
+
+                JSONObject response = new JSONObject(result.toString());
+                JSONArray usersArray = response.getJSONArray("users");
+
+                runOnUiThread(() -> showUserSelectionDialog(groupName, usersArray));
+            } catch (Exception e) {
+                Log.e("DashboardActivity", "Error fetching users", e);
+            }
+        }).start();
+    }
+
+    private void showUserSelectionDialog(String groupName, JSONArray usersArray) {
+        List<String> userList = new ArrayList<>();
+        boolean[] checkedItems = new boolean[usersArray.length()];
+
+        for (int i = 0; i < usersArray.length(); i++) {
+            userList.add(usersArray.optString(i));
+        }
+
+        String[] userArray = userList.toArray(new String[0]);
+        Set<String> selectedUsers = new HashSet<>();
+
+        new AlertDialog.Builder(this)
+                .setTitle("Add Members")
+                .setMultiChoiceItems(userArray, checkedItems, (dialog, indexSelected, isChecked) -> {
+                    if (isChecked) selectedUsers.add(userArray[indexSelected]);
+                    else selectedUsers.remove(userArray[indexSelected]);
+                })
+                .setPositiveButton("Create", (dialog, which) -> createGroup(groupName, selectedUsers))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void createGroup(String groupName, Set<String> members) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://ioweyou-sk05.onrender.com/create_group");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                JSONObject data = new JSONObject();
+                data.put("email", userEmail);
+                data.put("group_name", groupName);
+                data.put("members", new JSONArray(members));
+
+                OutputStream os = conn.getOutputStream();
+                os.write(data.toString().getBytes(StandardCharsets.UTF_8));
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+                Scanner scanner = new Scanner(conn.getInputStream()).useDelimiter("\\A");
+                if (scanner.hasNext()) scanner.next();
+
+                runOnUiThread(() -> {
+                    if (responseCode == 200) {
+                        Toast.makeText(this, "Group created successfully!", Toast.LENGTH_SHORT).show();
+                        fetchGroups();
+                    } else {
+                        Toast.makeText(this, "Failed to create group.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                conn.disconnect();
+            } catch (Exception e) {
+                Log.e("DashboardActivity", "Error creating group", e);
+                runOnUiThread(() -> Toast.makeText(this, "Create group failed!", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void joinGroup(String groupId) {
@@ -182,11 +308,12 @@ public class DashboardActivity extends AppCompatActivity {
 
                 int responseCode = conn.getResponseCode();
                 Scanner scanner = new Scanner(conn.getInputStream()).useDelimiter("\\A");
-                if (scanner.hasNext()) scanner.next(); // Consume response
+                if (scanner.hasNext()) scanner.next();
 
                 runOnUiThread(() -> {
                     if (responseCode == 200) {
                         Toast.makeText(this, "Joined group successfully!", Toast.LENGTH_SHORT).show();
+                        fetchGroups();
                     } else {
                         Toast.makeText(this, "Failed to join group.", Toast.LENGTH_SHORT).show();
                     }
@@ -200,38 +327,32 @@ public class DashboardActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void createGroup() {
+    @SuppressLint("NotifyDataSetChanged")
+    private void fetchGroups() {
         new Thread(() -> {
             try {
-                URL url = new URL("https://ioweyou-sk05.onrender.com/create_group");
+                URL url = new URL("https://ioweyou-sk05.onrender.com/user_groups?email=" + userEmail);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
-
-                JSONObject data = new JSONObject();
-                data.put("email", userEmail);
-
-                OutputStream os = conn.getOutputStream();
-                os.write(data.toString().getBytes(StandardCharsets.UTF_8));
-                os.close();
+                conn.setRequestMethod("GET");
 
                 int responseCode = conn.getResponseCode();
-                Scanner scanner = new Scanner(conn.getInputStream()).useDelimiter("\\A");
-                if (scanner.hasNext()) scanner.next(); // Consume response
+                if (responseCode == 200) {
+                    Scanner scanner = new Scanner(conn.getInputStream()).useDelimiter("\\A");
+                    String response = scanner.hasNext() ? scanner.next() : "";
 
-                runOnUiThread(() -> {
-                    if (responseCode == 200) {
-                        Toast.makeText(this, "Group created successfully!", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Failed to create group.", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    JSONObject jsonResponse = new JSONObject(response);
+                    JSONArray groupsArray = jsonResponse.getJSONArray("groups");
 
-                conn.disconnect();
+                    runOnUiThread(() -> {
+                        groupList.clear();
+                        for (int i = 0; i < groupsArray.length(); i++) {
+                            groupList.add(new Group(groupsArray.optString(i)));
+                        }
+                        groupAdapter.notifyDataSetChanged();
+                    });
+                }
             } catch (Exception e) {
-                Log.e("DashboardActivity", "Error creating group", e);
-                runOnUiThread(() -> Toast.makeText(this, "Create group failed!", Toast.LENGTH_SHORT).show());
+                Log.e("DashboardActivity", "Error fetching groups", e);
             }
         }).start();
     }
