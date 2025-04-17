@@ -1,3 +1,4 @@
+// DashboardActivity.java
 package com.example.ioweyou;
 
 import android.Manifest;
@@ -66,6 +67,8 @@ public class DashboardActivity extends AppCompatActivity {
 
     private GroupAdapter groupAdapter;
     private final List<Group> groupList = new ArrayList<>();
+
+    private String pendingPhoneNumber = null; // For SMS permission result handling
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -384,11 +387,26 @@ public class DashboardActivity extends AppCompatActivity {
         String message = "Hey! Check out the IOU app – track who owes whom! Download here: https://play.google.com/store/apps/details?id=com.example.ioweyou";
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            pendingPhoneNumber = phoneNumber;
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, REQUEST_SEND_SMS_PERMISSION);
         } else {
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendTextMessage(phoneNumber, null, message, null, null);
             Toast.makeText(this, "Invitation sent to " + phoneNumber, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_SEND_SMS_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && pendingPhoneNumber != null) {
+                sendSMSInvite(pendingPhoneNumber);
+                pendingPhoneNumber = null;
+            } else {
+                Toast.makeText(this, "SMS permission denied", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }
