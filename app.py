@@ -1,6 +1,6 @@
-from flask import Flask, request, jsonify  # type: ignore
-from flask_cors import CORS  # type: ignore
-from pymongo import MongoClient  # type: ignore
+from flask import Flask, request, jsonify # type: ignore
+from flask_cors import CORS # type: ignore
+from pymongo import MongoClient # type: ignore
 import os, uuid, traceback
 
 app = Flask(__name__)
@@ -162,6 +162,17 @@ def check_user_exists():
     else:
         return jsonify({"status": "error", "message": "User not found"}), 404
 
+# ------------------------- Get Group Members -------------------------
+@app.route("/get_group_members", methods=["POST"])
+def get_group_members():
+    data = request.get_json()
+    group_id = data.get("group_id")
+
+    group = groups.find_one({"group_id": group_id})
+    if group and "members" in group:
+        return jsonify({"members": group["members"]})
+    else:
+        return jsonify({"members": []}), 404
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

@@ -8,12 +8,15 @@
     tools:context=".DashboardActivity">
 
     <!-- App Title -->
+
+    <!-- App Logo -->
+
     <TextView
         android:id="@+id/subtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="200dp"
+        android:layout_marginEnd="176dp"
         android:text="@string/app_name"
         android:textColor="@color/white"
         android:textSize="25sp"
@@ -21,7 +24,6 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="VisualLintOverlap" />
 
-    <!-- App Logo -->
     <ImageView
         android:id="@+id/imageView3"
         android:layout_width="82dp"
@@ -34,19 +36,20 @@
         app:srcCompat="@drawable/logo_no_background" />
 
     <!-- Settings Icon -->
+
+    <!-- Search Bar -->
     <ImageView
         android:id="@+id/imageView7"
-        android:layout_width="84dp"
-        android:layout_height="68dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="5dp"
+        android:layout_width="74dp"
+        android:layout_height="57dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         android:contentDescription="@string/settings"
         android:onClick="showSettingsMenu"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/settings" />
 
-    <!-- Search Bar -->
     <androidx.appcompat.widget.SearchView
         android:id="@+id/searchView"
         android:layout_width="0dp"
