@@ -39,19 +39,13 @@ public class GroupChatActivity extends AppCompatActivity {
         }
 
         // Back arrow click
-        backArrow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish(); // Close and go back
-            }
+        backArrow.setOnClickListener(v -> {
+            finish(); // Close and go back
         });
 
         // Add payment logic
-        addPaymentButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // TODO: Implement add payment logic here
-            }
+        addPaymentButton.setOnClickListener(v -> {
+            // TODO: Implement add payment logic here
         });
     }
 }

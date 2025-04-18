@@ -86,7 +86,11 @@ public class DashboardActivity extends AppCompatActivity {
             else openFabMenu();
         });
 
-        btnAddContact.setOnClickListener(view -> requestOrPickContact());
+        btnAddContact.setOnClickListener(view -> {
+            closeFabMenu();
+            requestOrPickContact();
+        });
+
         btnJoinGroup.setOnClickListener(view -> {
             closeFabMenu();
             promptJoinGroup();
@@ -99,14 +103,11 @@ public class DashboardActivity extends AppCompatActivity {
 
         RecyclerView rv = findViewById(R.id.groupRecyclerView);
         rv.setLayoutManager(new LinearLayoutManager(this));
-
-        // ✅ Updated: Use OnGroupClickListener to open GroupDetailActivity
         groupAdapter = new GroupAdapter(groupList, group -> {
             Intent intent = new Intent(DashboardActivity.this, GroupDetailActivity.class);
             intent.putExtra("group_name", group.getName());
             startActivity(intent);
         });
-
         rv.setAdapter(groupAdapter);
         fetchGroups();
 
@@ -161,6 +162,69 @@ public class DashboardActivity extends AppCompatActivity {
                     PICK_CONTACT
             );
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_CONTACT && resultCode == RESULT_OK && data != null) {
+            Uri contactUri = data.getData();
+            String contactNumber = ContactUtils.getContactNumber(this, contactUri);
+
+            // Use the contact number directly instead of a fake email
+            checkUserExistsOrInvite(contactNumber, contactNumber);
+        }
+    }
+
+    private void checkUserExistsOrInvite(String email, String phone) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://ioweyou-sk05.onrender.com/check_user?email=" + email);
+                HttpURLConnection c = (HttpURLConnection) url.openConnection();
+                c.setRequestMethod("GET");
+
+                int code = c.getResponseCode();
+
+                runOnUiThread(() -> {
+                    if (code == 200) {
+                        promptForContactName(email, phone);
+                    } else {
+                        sendInviteSMS(phone);
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("DashboardActivity", "Error checking user", e);
+            }
+        }).start();
+    }
+
+    private void promptForContactName(String email, String phone) {
+        EditText input = new EditText(this);
+        input.setHint("Enter Name for Contact");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Add Contact")
+                .setView(input)
+                .setPositiveButton("Save", (d, i) -> {
+                    String name = input.getText().toString().trim();
+                    if (!name.isEmpty()) {
+                        Intent intent = new Intent(this, ContactChatActivity.class);
+                        intent.putExtra("contact_email", email);
+                        intent.putExtra("contact_name", name);
+                        intent.putExtra("contact_number", phone);
+                        startActivity(intent);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void sendInviteSMS(String phone) {
+        Intent sms = new Intent(Intent.ACTION_SENDTO);
+        sms.setData(Uri.parse("smsto:" + phone));
+        sms.putExtra("sms_body", "Hey! Join me on IOU App to split and manage group expenses. Download: https://play.google.com/store/apps/details?id=com.example.ioweyou");
+        startActivity(sms);
     }
 
     private void promptJoinGroup() {
@@ -243,7 +307,6 @@ public class DashboardActivity extends AppCompatActivity {
                 }
 
                 int code = c.getResponseCode();
-
                 StringBuilder responseBuilder = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
                     String line;
@@ -251,9 +314,6 @@ public class DashboardActivity extends AppCompatActivity {
                         responseBuilder.append(line);
                     }
                 }
-
-                c.disconnect();
-
                 JSONObject responseJson = new JSONObject(responseBuilder.toString());
 
                 runOnUiThread(() -> {
@@ -340,7 +400,6 @@ public class DashboardActivity extends AppCompatActivity {
                         }
                         groupAdapter.notifyDataSetChanged();
 
-                        // ✅ Scroll to top after new group is added
                         RecyclerView rv = findViewById(R.id.groupRecyclerView);
                         rv.scrollToPosition(0);
                     });

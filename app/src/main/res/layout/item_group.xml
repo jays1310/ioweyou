@@ -74,20 +74,33 @@
         app:srcCompat="@drawable/option"
         tools:ignore="ImageContrastCheck" />
 
+    <!-- Add Payment Button -->
+
     <TextView
-        android:id="@+id/_contact_name"
+        android:id="@+id/text_group_id"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="128dp"
-        android:layout_marginTop="81dp"
-        android:text="@string/contact_name"
+        android:layout_marginStart="68dp"
+        android:layout_marginTop="84dp"
+        android:text="@string/group"
         android:textColor="#FFFFFF"
         android:textSize="19sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Add Payment Button -->
+    <TextView
+        android:id="@+id/text_group_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="152dp"
+        android:layout_marginTop="84dp"
+        android:text="@string/group_name"
+        android:textColor="#FFFFFF"
+        android:textSize="19sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/btn_add_payment"

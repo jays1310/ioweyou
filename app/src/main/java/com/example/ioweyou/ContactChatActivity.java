@@ -11,7 +11,7 @@ public class ContactChatActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_contact_chat); // Use your actual XML filename
+        setContentView(R.layout.item_contact); // Use your actual XML filename
 
         TextView contactNameTextView = findViewById(R.id.contact_name);
         String contactName = getIntent().getStringExtra("contact_name");
