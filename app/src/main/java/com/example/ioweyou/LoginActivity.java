@@ -32,45 +32,39 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        etIdentifier      = findViewById(R.id.et_email);       // reuse your existing EditText
-        etPassword        = findViewById(R.id.et_password);
+        etIdentifier = findViewById(R.id.et_email);
+        etPassword = findViewById(R.id.et_password);
         rememberMeCheckBox = findViewById(R.id.cb_remember_me);
         sharedPreferences = getSharedPreferences("MyAppPreferences", MODE_PRIVATE);
 
-        // restore saved credentials if “remember me” was checked
         if (sharedPreferences.getBoolean("rememberMe", false)) {
-            etIdentifier .setText(sharedPreferences.getString("identifier", ""));
-            etPassword   .setText(sharedPreferences.getString("password", ""));
+            etIdentifier.setText(sharedPreferences.getString("identifier", ""));
+            etPassword.setText(sharedPreferences.getString("password", ""));
             rememberMeCheckBox.setChecked(true);
         }
     }
 
     public void loginUser(View view) {
         String identifier = etIdentifier.getText().toString().trim();
-        String password   = etPassword   .getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
 
         if (identifier.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please enter both identifier and password.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // If it looks like an email, validate email format
         if (identifier.contains("@")) {
             if (!Patterns.EMAIL_ADDRESS.matcher(identifier).matches()) {
                 Toast.makeText(this, "Invalid email address!", Toast.LENGTH_SHORT).show();
                 return;
             }
-        }
-        // Else if all digits, treat as phone number: require 10 digits
-        else if (identifier.matches("\\d+")) {
+        } else if (identifier.matches("\\d+")) {
             if (identifier.length() != 10) {
                 Toast.makeText(this, "Invalid contact number! Must be 10 digits.", Toast.LENGTH_SHORT).show();
                 return;
             }
         }
-        // else treat as username — no further format check
 
-        // Send login request on background thread
         new Thread(() -> {
             try {
                 URL url = new URL("https://ioweyou-sk05.onrender.com/login");
@@ -81,12 +75,10 @@ public class LoginActivity extends AppCompatActivity {
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
 
-                // Build JSON payload
                 JSONObject loginData = new JSONObject();
                 loginData.put("identifier", identifier);
                 loginData.put("password", password);
 
-                // Send it
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(loginData.toString().getBytes(StandardCharsets.UTF_8));
                 }
@@ -99,16 +91,16 @@ public class LoginActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     try {
-                        String status  = jsonResponse.getString("status");
+                        String status = jsonResponse.getString("status");
                         String message = jsonResponse.getString("message");
 
                         if (responseCode == 200 && "success".equals(status)) {
-                            // Save the identifier (could be email, username, or contact)
+                            // Save identifier for login session
                             SharedPreferences.Editor iouEditor = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit();
                             iouEditor.putString("user_identifier", identifier);
                             iouEditor.apply();
 
-                            // Handle “remember me”
+                            // Handle Remember Me
                             SharedPreferences.Editor editor = sharedPreferences.edit();
                             if (rememberMeCheckBox.isChecked()) {
                                 editor.putBoolean("rememberMe", true);
@@ -120,7 +112,9 @@ public class LoginActivity extends AppCompatActivity {
                             editor.apply();
 
                             Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show();
-                            startActivity(new Intent(LoginActivity.this, DashboardActivity.class));
+                            Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
                             finish();
                         } else {
                             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
@@ -134,19 +128,17 @@ public class LoginActivity extends AppCompatActivity {
                 conn.disconnect();
             } catch (Exception e) {
                 Log.e("LoginActivity", "Login failed", e);
-                runOnUiThread(() ->
-                        Toast.makeText(this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                );
+                runOnUiThread(() -> Toast.makeText(this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
 
     public void openSignUp(View view) {
-        startActivity(new Intent(this, SignUpActivity.class));
+        startActivity(new Intent(LoginActivity.this, SignUpActivity.class));
     }
 
     public void goBackToMain(View view) {
-        startActivity(new Intent(this, MainActivity.class));
+        startActivity(new Intent(LoginActivity.this, MainActivity.class));
         finish();
     }
 }

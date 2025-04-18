@@ -1,6 +1,7 @@
 package com.example.ioweyou;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
@@ -12,7 +13,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // Make sure your layout is named correctly
+
+        // Check if user is already logged in
+        SharedPreferences prefs = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE);
+        String identifier = prefs.getString("user_identifier", null);
+
+        if (identifier != null) {
+            // User already logged in — go to dashboard
+            startActivity(new Intent(this, DashboardActivity.class));
+            finish(); // Prevent going back here
+            return;
+        }
+
+        // Else show the normal main layout with login/signup buttons
+        setContentView(R.layout.activity_main); // Ensure this matches your XML file
 
         loginButton = findViewById(R.id.btnLogin);
         signUpButton = findViewById(R.id.btnSignUp);
@@ -27,5 +41,4 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
     }
-
 }

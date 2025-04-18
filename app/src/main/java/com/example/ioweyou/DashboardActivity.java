@@ -3,8 +3,11 @@ package com.example.ioweyou;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
@@ -20,6 +23,7 @@ import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -27,7 +31,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -43,14 +46,13 @@ import java.util.Scanner;
 import java.util.Set;
 
 public class DashboardActivity extends AppCompatActivity {
-
     private static final int REQUEST_CONTACT_PERMISSION = 1;
     private static final int PICK_CONTACT = 3;
 
     private LinearLayout fabMenu;
     private boolean isFabMenuOpen = false;
     private Animation rotateOpen, rotateClose, fadeIn, fadeOut;
-    private String userEmail;
+    private String userIdentifier;
 
     private GroupAdapter groupAdapter;
     private final List<Group> groupList = new ArrayList<>();
@@ -60,43 +62,45 @@ public class DashboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
 
-        userEmail = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE)
-                .getString("user_email", null);
-        if (userEmail == null) {
-            Toast.makeText(this, "User email not found!", Toast.LENGTH_SHORT).show();
+        // 1) Load the saved identifier (email, username, or phone)
+        SharedPreferences prefs = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE);
+        userIdentifier = prefs.getString("user_identifier", null);
+        if (userIdentifier == null) {
+            // Not logged in, force login
+            startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
         findViewById(R.id.imageView7).setOnClickListener(this::showSettingsMenu);
 
-        fabMenu = findViewById(R.id.fab_menu);
-        ImageView fab = findViewById(R.id.btn_add_transaction);
+        fabMenu        = findViewById(R.id.fab_menu);
+        ImageView fab  = findViewById(R.id.btn_add_transaction);
         Button btnAddContact = findViewById(R.id.btn_add_contact);
-        Button btnJoinGroup = findViewById(R.id.btn_join_group);
-        Button btnCreateGroup = findViewById(R.id.btn_create_group);
+        Button btnJoinGroup  = findViewById(R.id.btn_join_group);
+        Button btnCreateGroup= findViewById(R.id.btn_create_group);
 
-        rotateOpen = AnimationUtils.loadAnimation(this, R.anim.rotate_open_anim);
+        rotateOpen  = AnimationUtils.loadAnimation(this, R.anim.rotate_open_anim);
         rotateClose = AnimationUtils.loadAnimation(this, R.anim.rotate_close_anim);
-        fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in);
-        fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
+        fadeIn      = AnimationUtils.loadAnimation(this, R.anim.fade_in);
+        fadeOut     = AnimationUtils.loadAnimation(this, R.anim.fade_out);
 
-        fab.setOnClickListener(view -> {
+        fab.setOnClickListener(v -> {
             if (isFabMenuOpen) closeFabMenu();
             else openFabMenu();
         });
 
-        btnAddContact.setOnClickListener(view -> {
+        // Add Contact flow
+        btnAddContact.setOnClickListener(v -> {
             closeFabMenu();
             requestOrPickContact();
         });
-
-        btnJoinGroup.setOnClickListener(view -> {
+        // Group flows
+        btnJoinGroup.setOnClickListener(v -> {
             closeFabMenu();
             promptJoinGroup();
         });
-
-        btnCreateGroup.setOnClickListener(view -> {
+        btnCreateGroup.setOnClickListener(v -> {
             closeFabMenu();
             promptGroupName();
         });
@@ -104,16 +108,17 @@ public class DashboardActivity extends AppCompatActivity {
         RecyclerView rv = findViewById(R.id.groupRecyclerView);
         rv.setLayoutManager(new LinearLayoutManager(this));
         groupAdapter = new GroupAdapter(groupList, group -> {
-            Intent intent = new Intent(DashboardActivity.this, GroupDetailActivity.class);
-            intent.putExtra("group_name", group.getName());
-            startActivity(intent);
+            Intent i = new Intent(DashboardActivity.this, GroupDetailActivity.class);
+            i.putExtra("group_id",   group.getGroupId());
+            i.putExtra("group_name", group.getName());
+            startActivity(i);
         });
         rv.setAdapter(groupAdapter);
+
         fetchGroups();
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
+            @Override public void handleOnBackPressed() {
                 if (isFabMenuOpen) closeFabMenu();
                 else finish();
             }
@@ -131,8 +136,14 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void logoutUser() {
-        getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit().clear().apply();
-        startActivity(new Intent(this, MainActivity.class));
+        // Clear just the login token
+        getSharedPreferences("IOUAppPrefs", MODE_PRIVATE)
+                .edit()
+                .remove("user_identifier")
+                .apply();
+        // Back to Login
+        startActivity(new Intent(this, LoginActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK));
         finish();
     }
 
@@ -153,9 +164,11 @@ public class DashboardActivity extends AppCompatActivity {
     private void requestOrPickContact() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
                 != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
+            ActivityCompat.requestPermissions(
+                    this,
                     new String[]{Manifest.permission.READ_CONTACTS},
-                    REQUEST_CONTACT_PERMISSION);
+                    REQUEST_CONTACT_PERMISSION
+            );
         } else {
             startActivityForResult(
                     new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI),
@@ -165,55 +178,91 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_CONTACT && resultCode == RESULT_OK && data != null) {
-            Uri contactUri = data.getData();
-            String contactNumber = ContactUtils.getContactNumber(this, contactUri);
-
-            // Use the contact number directly instead of a fake email
-            checkUserExistsOrInvite(contactNumber, contactNumber);
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] perms, @NonNull int[] results) {
+        super.onRequestPermissionsResult(requestCode, perms, results);
+        if (requestCode == REQUEST_CONTACT_PERMISSION
+                && results.length > 0
+                && results[0] == PackageManager.PERMISSION_GRANTED) {
+            requestOrPickContact();
+        } else {
+            Toast.makeText(this, "Contacts permission required to add a contact", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void checkUserExistsOrInvite(String email, String phone) {
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == PICK_CONTACT && res == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            String phone = extractPhoneNumber(uri);
+            if (phone != null) {
+                checkUserExistsOrInvite(phone);
+            }
+        }
+    }
+
+    /** Query the Contacts provider to pull out the phone number. */
+    private String extractPhoneNumber(Uri uri) {
+        ContentResolver cr = getContentResolver();
+        Cursor cursor = cr.query(uri,
+                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
+                null, null, null
+        );
+        if (cursor != null && cursor.moveToFirst()) {
+            String num = cursor.getString(
+                    cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            );
+            cursor.close();
+            return num;
+        }
+        return null;
+    }
+
+    /** Hit your new /check_user_exists endpoint; if found, prompt name→chat, else launch SMS. */
+    private void checkUserExistsOrInvite(String phone) {
         new Thread(() -> {
             try {
-                URL url = new URL("https://ioweyou-sk05.onrender.com/check_user?email=" + email);
+                URL url = new URL("https://ioweyou-sk05.onrender.com/check_user_exists");
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
-                c.setRequestMethod("GET");
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type","application/json; charset=UTF-8");
+                c.setDoOutput(true);
+
+                JSONObject body = new JSONObject();
+                body.put("identifier", phone);
+
+                try (OutputStream os = c.getOutputStream()) {
+                    os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                }
 
                 int code = c.getResponseCode();
-
                 runOnUiThread(() -> {
                     if (code == 200) {
-                        promptForContactName(email, phone);
+                        promptForContactName(phone);
                     } else {
                         sendInviteSMS(phone);
                     }
                 });
-
+                c.disconnect();
             } catch (Exception e) {
                 Log.e("DashboardActivity", "Error checking user", e);
             }
         }).start();
     }
 
-    private void promptForContactName(String email, String phone) {
+    private void promptForContactName(String phone) {
         EditText input = new EditText(this);
-        input.setHint("Enter Name for Contact");
-
+        input.setHint("Enter contact name");
         new AlertDialog.Builder(this)
-                .setTitle("Add Contact")
+                .setTitle("Save Contact")
                 .setView(input)
-                .setPositiveButton("Save", (d, i) -> {
+                .setPositiveButton("OK", (dlg, which) -> {
                     String name = input.getText().toString().trim();
                     if (!name.isEmpty()) {
-                        Intent intent = new Intent(this, ContactChatActivity.class);
-                        intent.putExtra("contact_email", email);
-                        intent.putExtra("contact_name", name);
-                        intent.putExtra("contact_number", phone);
-                        startActivity(intent);
+                        Intent i = new Intent(this, ContactChatActivity.class);
+                        i.putExtra("contact_number", phone);
+                        i.putExtra("contact_name",   name);
+                        startActivity(i);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -223,28 +272,34 @@ public class DashboardActivity extends AppCompatActivity {
     private void sendInviteSMS(String phone) {
         Intent sms = new Intent(Intent.ACTION_SENDTO);
         sms.setData(Uri.parse("smsto:" + phone));
-        sms.putExtra("sms_body", "Hey! Join me on IOU App to split and manage group expenses. Download: https://play.google.com/store/apps/details?id=com.example.ioweyou");
+        sms.putExtra("sms_body",
+                "Hey! Join me on IOU App to split & manage expenses: https://play.google.com/store/apps/details?id=com.example.ioweyou"
+        );
         startActivity(sms);
     }
 
+    // ─── Existing “Groups” logic ──────────────────────────────────────────
+
     private void promptJoinGroup() {
-        EditText input = new EditText(this);
-        input.setHint("Enter Group Code");
+        EditText e = new EditText(this);
+        e.setHint("Enter Group Code");
         new AlertDialog.Builder(this)
                 .setTitle("Join Group")
-                .setView(input)
-                .setPositiveButton("Join", (d, i) -> joinGroup(input.getText().toString().trim()))
+                .setView(e)
+                .setPositiveButton("Join",
+                        (d, i) -> joinGroup(e.getText().toString().trim()))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void promptGroupName() {
-        EditText input = new EditText(this);
-        input.setHint("Enter Group Name");
+        EditText e = new EditText(this);
+        e.setHint("Enter Group Name");
         new AlertDialog.Builder(this)
                 .setTitle("Create Group")
-                .setView(input)
-                .setPositiveButton("Next", (d, i) -> fetchUsersThenCreate(input.getText().toString().trim()))
+                .setView(e)
+                .setPositiveButton("Next",
+                        (d, i) -> fetchUsersThenCreate(e.getText().toString().trim()))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
@@ -255,9 +310,12 @@ public class DashboardActivity extends AppCompatActivity {
                 URL url = new URL("https://ioweyou-sk05.onrender.com/all_users");
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 c.setRequestMethod("GET");
-                BufferedReader in = new BufferedReader(new InputStreamReader(c.getInputStream()));
+                BufferedReader in = new BufferedReader(
+                        new InputStreamReader(c.getInputStream())
+                );
                 StringBuilder sb = new StringBuilder();
-                for (String line; (line = in.readLine()) != null; ) sb.append(line);
+                for (String line; (line = in.readLine()) != null; )
+                    sb.append(line);
                 in.close();
 
                 JSONObject resp = new JSONObject(sb.toString());
@@ -271,19 +329,24 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void showUserSelectionDialog(String groupName, JSONArray arr) {
-        List<String> users = new ArrayList<>();
+        List<String> emails = new ArrayList<>();
         boolean[] checks = new boolean[arr.length()];
-        for (int i = 0; i < arr.length(); i++) users.add(arr.optString(i));
-        String[] userArray = users.toArray(new String[0]);
+        for (int i = 0; i < arr.length(); i++) try {
+            emails.add(arr.getString(i));
+        } catch (Exception e) { /* ignore */ }
+
+        String[] items = emails.toArray(new String[0]);
         Set<String> picked = new HashSet<>();
 
         new AlertDialog.Builder(this)
                 .setTitle("Add Members")
-                .setMultiChoiceItems(userArray, checks, (dlg, idx, checked) -> {
-                    if (checked) picked.add(userArray[idx]);
-                    else picked.remove(userArray[idx]);
-                })
-                .setPositiveButton("Create", (dlg, w) -> createGroup(groupName, picked))
+                .setMultiChoiceItems(items, checks,
+                        (dlg, idx, checked) -> {
+                            if (checked) picked.add(items[idx]);
+                            else          picked.remove(items[idx]);
+                        })
+                .setPositiveButton("Create",
+                        (dlg, w) -> createGroup(groupName, picked))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
@@ -291,52 +354,57 @@ public class DashboardActivity extends AppCompatActivity {
     private void createGroup(String groupName, Set<String> members) {
         new Thread(() -> {
             try {
+                // Ensure creator is in the member list
+                members.add(userIdentifier);
+
                 URL url = new URL("https://ioweyou-sk05.onrender.com/create_group");
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 c.setRequestMethod("POST");
-                c.setRequestProperty("Content-Type", "application/json");
+                c.setRequestProperty("Content-Type","application/json");
                 c.setDoOutput(true);
 
                 JSONObject data = new JSONObject();
-                data.put("email", userEmail);
+                data.put("identifier", userIdentifier);
                 data.put("group_name", groupName);
-                data.put("members", new JSONArray(members));
+                data.put("members",  new JSONArray(members));
 
                 try (OutputStream os = c.getOutputStream()) {
                     os.write(data.toString().getBytes(StandardCharsets.UTF_8));
                 }
 
                 int code = c.getResponseCode();
-                StringBuilder responseBuilder = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        responseBuilder.append(line);
-                    }
-                }
-                JSONObject responseJson = new JSONObject(responseBuilder.toString());
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(c.getInputStream())
+                );
+                StringBuilder resp = new StringBuilder();
+                for (String line; (line = reader.readLine()) != null; )
+                    resp.append(line);
+                JSONObject json = new JSONObject(resp.toString());
+                c.disconnect();
 
                 runOnUiThread(() -> {
                     Toast.makeText(this,
                             code == 200 ? "Group created!" : "Create failed",
-                            Toast.LENGTH_SHORT).show();
+                            Toast.LENGTH_SHORT
+                    ).show();
 
                     if (code == 200) {
                         fetchGroups();
-
-                        Intent intent = new Intent(DashboardActivity.this, GroupDetailActivity.class);
-                        intent.putExtra("group_id", responseJson.optString("group_id"));
-                        intent.putExtra("group_name", responseJson.optString("group_name"));
-                        startActivity(intent);
+                        Intent i = new Intent(this, GroupChatActivity.class);
+                        i.putExtra("group_id",   json.optString("group_id"));
+                        i.putExtra("group_name", json.optString("group_name"));
+                        startActivity(i);
                     }
                 });
             } catch (Exception e) {
-                Log.e("DashboardActivity", "Error creating group", e);
+                Log.e("DashboardActivity","Error creating group",e);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Create failed", Toast.LENGTH_SHORT).show());
+                        Toast.makeText(this,"Create failed",Toast.LENGTH_SHORT).show()
+                );
             }
         }).start();
     }
+
 
     private void joinGroup(String gid) {
         new Thread(() -> {
@@ -344,32 +412,33 @@ public class DashboardActivity extends AppCompatActivity {
                 URL url = new URL("https://ioweyou-sk05.onrender.com/join_group");
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 c.setRequestMethod("POST");
-                c.setRequestProperty("Content-Type", "application/json");
+                c.setRequestProperty("Content-Type","application/json");
                 c.setDoOutput(true);
 
-                JSONObject data = new JSONObject();
-                data.put("email", userEmail);
-                data.put("group_id", gid);
+                JSONObject d = new JSONObject();
+                d.put("identifier", userIdentifier);
+                d.put("group_id",   gid);
 
                 try (OutputStream os = c.getOutputStream()) {
-                    os.write(data.toString().getBytes(StandardCharsets.UTF_8));
+                    os.write(d.toString().getBytes(StandardCharsets.UTF_8));
                 }
 
                 int code = c.getResponseCode();
-                new Scanner(c.getInputStream()).useDelimiter("\\A").forEachRemaining(s -> {});
+                new Scanner(c.getInputStream()).useDelimiter("\\A").forEachRemaining(s->{});
+                c.disconnect();
 
                 runOnUiThread(() -> {
                     Toast.makeText(this,
                             code == 200 ? "Joined!" : "Join failed",
-                            Toast.LENGTH_SHORT).show();
+                            Toast.LENGTH_SHORT
+                    ).show();
                     if (code == 200) fetchGroups();
                 });
-
-                c.disconnect();
             } catch (Exception e) {
-                Log.e("DashboardActivity", "Error joining group", e);
+                Log.e("DashboardActivity","Error joining group",e);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Join failed", Toast.LENGTH_SHORT).show());
+                        Toast.makeText(this,"Join failed",Toast.LENGTH_SHORT).show()
+                );
             }
         }).start();
     }
@@ -378,15 +447,14 @@ public class DashboardActivity extends AppCompatActivity {
     private void fetchGroups() {
         new Thread(() -> {
             try {
-                URL url = new URL("https://ioweyou-sk05.onrender.com/user_groups?email=" + userEmail);
+                URL url = new URL("https://ioweyou-sk05.onrender.com/user_groups?identifier=" + userIdentifier);
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 c.setRequestMethod("GET");
 
                 if (c.getResponseCode() == 200) {
                     Scanner sc = new Scanner(c.getInputStream()).useDelimiter("\\A");
                     String resp = sc.hasNext() ? sc.next() : "";
-                    JSONObject jr = new JSONObject(resp);
-                    JSONArray arr = jr.getJSONArray("groups");
+                    JSONArray arr = new JSONObject(resp).getJSONArray("groups");
 
                     runOnUiThread(() -> {
                         groupList.clear();
@@ -394,19 +462,17 @@ public class DashboardActivity extends AppCompatActivity {
                             try {
                                 JSONObject g = arr.getJSONObject(i);
                                 groupList.add(new Group(g.getString("group_id"), g.getString("name")));
-                            } catch (JSONException e) {
-                                Log.e("DashboardActivity", "JSON error", e);
-                            }
+                            } catch (Exception e) { /* ignore */ }
                         }
                         groupAdapter.notifyDataSetChanged();
-
+                        // scroll new items into view
                         RecyclerView rv = findViewById(R.id.groupRecyclerView);
                         rv.scrollToPosition(0);
                     });
                 }
                 c.disconnect();
             } catch (Exception e) {
-                Log.e("DashboardActivity", "Error fetching groups", e);
+                Log.e("DashboardActivity","Error fetching groups",e);
             }
         }).start();
     }

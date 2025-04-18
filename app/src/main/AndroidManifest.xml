@@ -46,6 +46,8 @@
 
         <activity android:name=".GroupDetailActivity" />
 
+        <activity android:name=".GroupChatActivity" />
+
         <activity android:name=".ForgotPasswordActivity" />
 
         <activity android:name=".ContactChatActivity" />
