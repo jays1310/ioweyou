@@ -44,6 +44,13 @@
         <!-- 🏠 Dashboard (after login/signup) -->
         <activity android:name=".DashboardActivity" android:exported="true" />
 
+        <activity android:name=".GroupDetailActivity" />
+
+        <activity android:name=".ForgotPasswordActivity" />
+
+        <activity android:name=".ContactChatActivity" />
+
+
         <!-- Optional preloaded fonts -->
         <meta-data
             android:name="preloaded_fonts"

@@ -23,7 +23,7 @@ import java.util.Scanner;
 
 public class SignUpActivity extends AppCompatActivity {
 
-    private EditText usernameInput, emailInput, passwordInput, confirmPasswordInput;
+    private EditText usernameInput, emailInput, passwordInput, confirmPasswordInput, contactInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +34,7 @@ public class SignUpActivity extends AppCompatActivity {
         emailInput = getInputEditText(R.id.emailInputLayout);
         passwordInput = getInputEditText(R.id.passwordInputLayout);
         confirmPasswordInput = getInputEditText(R.id.confirmPasswordInput);
+        contactInput = getInputEditText(R.id.contactInputLayout); // 💬 Fetch contact field
     }
 
     private EditText getInputEditText(int layoutId) {
@@ -42,7 +43,7 @@ public class SignUpActivity extends AppCompatActivity {
     }
 
     public void registerUser(View view) {
-        if (usernameInput == null || emailInput == null || passwordInput == null || confirmPasswordInput == null) {
+        if (usernameInput == null || emailInput == null || passwordInput == null || confirmPasswordInput == null || contactInput == null) {
             Toast.makeText(this, "Error loading input fields.", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -51,9 +52,22 @@ public class SignUpActivity extends AppCompatActivity {
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
         String confirmPassword = confirmPasswordInput.getText().toString();
+        String contact = contactInput.getText().toString().trim(); // 📞 Get contact number
 
-        if (username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+        if (username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() || contact.isEmpty()) {
             Toast.makeText(this, "All fields are required!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Email format validation
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(this, "Invalid email address!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Phone number validation (basic 10 digits)
+        if (!contact.matches("\\d{10}")) {
+            Toast.makeText(this, "Enter a valid 10-digit contact number!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -76,6 +90,7 @@ public class SignUpActivity extends AppCompatActivity {
                 userData.put("username", username);
                 userData.put("email", email);
                 userData.put("password", password);
+                userData.put("contact", contact); // 🧾 Add contact to request
 
                 OutputStream os = conn.getOutputStream();
                 os.write(userData.toString().getBytes(StandardCharsets.UTF_8));
@@ -93,7 +108,6 @@ public class SignUpActivity extends AppCompatActivity {
                         String message = jsonResponse.getString("message");
 
                         if (responseCode == 201 && "success".equals(status)) {
-                            // Save user_email to SharedPreferences
                             SharedPreferences.Editor editor = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit();
                             editor.putString("user_email", email);
                             editor.apply();

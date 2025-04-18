@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -22,7 +23,7 @@ import java.util.Scanner;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private EditText etEmail, etPassword;
+    private EditText etIdentifier, etPassword;
     private CheckBox rememberMeCheckBox;
     private SharedPreferences sharedPreferences;
 
@@ -31,27 +32,45 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        etEmail = findViewById(R.id.et_email);
-        etPassword = findViewById(R.id.et_password);
+        etIdentifier      = findViewById(R.id.et_email);       // reuse your existing EditText
+        etPassword        = findViewById(R.id.et_password);
         rememberMeCheckBox = findViewById(R.id.cb_remember_me);
         sharedPreferences = getSharedPreferences("MyAppPreferences", MODE_PRIVATE);
 
+        // restore saved credentials if “remember me” was checked
         if (sharedPreferences.getBoolean("rememberMe", false)) {
-            etEmail.setText(sharedPreferences.getString("email", ""));
-            etPassword.setText(sharedPreferences.getString("password", ""));
+            etIdentifier .setText(sharedPreferences.getString("identifier", ""));
+            etPassword   .setText(sharedPreferences.getString("password", ""));
             rememberMeCheckBox.setChecked(true);
         }
     }
 
     public void loginUser(View view) {
-        String email = etEmail.getText().toString().trim();
-        String password = etPassword.getText().toString().trim();
+        String identifier = etIdentifier.getText().toString().trim();
+        String password   = etPassword   .getText().toString().trim();
 
-        if (email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Please enter both email and password.", Toast.LENGTH_SHORT).show();
+        if (identifier.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please enter both identifier and password.", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // If it looks like an email, validate email format
+        if (identifier.contains("@")) {
+            if (!Patterns.EMAIL_ADDRESS.matcher(identifier).matches()) {
+                Toast.makeText(this, "Invalid email address!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        // Else if all digits, treat as phone number: require 10 digits
+        else if (identifier.matches("\\d+")) {
+            if (identifier.length() != 10) {
+                Toast.makeText(this, "Invalid contact number! Must be 10 digits.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        // else treat as username — no further format check
+
+        // Send login request on background thread
         new Thread(() -> {
             try {
                 URL url = new URL("https://ioweyou-sk05.onrender.com/login");
@@ -62,13 +81,15 @@ public class LoginActivity extends AppCompatActivity {
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
 
+                // Build JSON payload
                 JSONObject loginData = new JSONObject();
-                loginData.put("email", email);
+                loginData.put("identifier", identifier);
                 loginData.put("password", password);
 
-                OutputStream os = conn.getOutputStream();
-                os.write(loginData.toString().getBytes(StandardCharsets.UTF_8));
-                os.close();
+                // Send it
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(loginData.toString().getBytes(StandardCharsets.UTF_8));
+                }
 
                 int responseCode = conn.getResponseCode();
                 InputStream is = conn.getInputStream();
@@ -78,20 +99,20 @@ public class LoginActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     try {
-                        String status = jsonResponse.getString("status");
+                        String status  = jsonResponse.getString("status");
                         String message = jsonResponse.getString("message");
 
                         if (responseCode == 200 && "success".equals(status)) {
-                            // Store user_email in shared preferences
+                            // Save the identifier (could be email, username, or contact)
                             SharedPreferences.Editor iouEditor = getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit();
-                            iouEditor.putString("user_email", email);
+                            iouEditor.putString("user_identifier", identifier);
                             iouEditor.apply();
 
-                            // Optionally remember login credentials
+                            // Handle “remember me”
                             SharedPreferences.Editor editor = sharedPreferences.edit();
                             if (rememberMeCheckBox.isChecked()) {
                                 editor.putBoolean("rememberMe", true);
-                                editor.putString("email", email);
+                                editor.putString("identifier", identifier);
                                 editor.putString("password", password);
                             } else {
                                 editor.clear();
@@ -99,8 +120,7 @@ public class LoginActivity extends AppCompatActivity {
                             editor.apply();
 
                             Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
-                            startActivity(intent);
+                            startActivity(new Intent(LoginActivity.this, DashboardActivity.class));
                             finish();
                         } else {
                             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
@@ -112,10 +132,11 @@ public class LoginActivity extends AppCompatActivity {
                 });
 
                 conn.disconnect();
-
             } catch (Exception e) {
                 Log.e("LoginActivity", "Login failed", e);
-                runOnUiThread(() -> Toast.makeText(this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Login failed: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                );
             }
         }).start();
     }

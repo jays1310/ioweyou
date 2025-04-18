@@ -38,5 +38,13 @@
     <string name="options">options</string>
     <string name="add_payment">Add Payment</string>
     <string name="card_bg">card bg</string>
+    <string name="user_display">%1$s (%2$s)</string>
+    <string name="group_id_label">ID: %1$s</string>
+    <string name="group_id_format">ID: %1$s</string>
+    <string name="enter_your_email">Enter your email</string>
+    <string name="send_reset_email">Send Reset Email</string>
+    <string name="contact_number">Contact number</string>
+    <string name="user_detail">User Detail</string>
+    <string name="contact_name">Contact name</string>
 
 </resources>

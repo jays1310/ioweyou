@@ -4,13 +4,10 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
-import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
@@ -23,15 +20,14 @@ import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -49,10 +45,8 @@ import java.util.Set;
 public class DashboardActivity extends AppCompatActivity {
 
     private static final int REQUEST_CONTACT_PERMISSION = 1;
-    private static final int REQUEST_SEND_SMS_PERMISSION = 2;
     private static final int PICK_CONTACT = 3;
 
-    private SearchView searchView;
     private LinearLayout fabMenu;
     private boolean isFabMenuOpen = false;
     private Animation rotateOpen, rotateClose, fadeIn, fadeOut;
@@ -60,7 +54,6 @@ public class DashboardActivity extends AppCompatActivity {
 
     private GroupAdapter groupAdapter;
     private final List<Group> groupList = new ArrayList<>();
-    private String pendingPhoneNumber = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,57 +68,69 @@ public class DashboardActivity extends AppCompatActivity {
             return;
         }
 
-        findViewById(R.id.imageView7)
-                .setOnClickListener(this::showSettingsMenu);
+        findViewById(R.id.imageView7).setOnClickListener(this::showSettingsMenu);
 
-        searchView = findViewById(R.id.searchView);
         fabMenu = findViewById(R.id.fab_menu);
         ImageView fab = findViewById(R.id.btn_add_transaction);
-
         Button btnAddContact = findViewById(R.id.btn_add_contact);
-        Button btnJoinGroup  = findViewById(R.id.btn_join_group);
-        Button btnCreateGroup= findViewById(R.id.btn_create_group);
+        Button btnJoinGroup = findViewById(R.id.btn_join_group);
+        Button btnCreateGroup = findViewById(R.id.btn_create_group);
 
-        rotateOpen  = AnimationUtils.loadAnimation(this, R.anim.rotate_open_anim);
+        rotateOpen = AnimationUtils.loadAnimation(this, R.anim.rotate_open_anim);
         rotateClose = AnimationUtils.loadAnimation(this, R.anim.rotate_close_anim);
-        fadeIn      = AnimationUtils.loadAnimation(this, R.anim.fade_in);
-        fadeOut     = AnimationUtils.loadAnimation(this, R.anim.fade_out);
+        fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in);
+        fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
 
-        fab.setOnClickListener(v -> {
+        fab.setOnClickListener(view -> {
             if (isFabMenuOpen) closeFabMenu();
             else openFabMenu();
         });
 
-        btnAddContact.setOnClickListener(v -> requestOrPickContact());
-        btnJoinGroup .setOnClickListener(v -> { closeFabMenu(); promptJoinGroup(); });
-        btnCreateGroup.setOnClickListener(v -> { closeFabMenu(); promptGroupName(); });
+        btnAddContact.setOnClickListener(view -> requestOrPickContact());
+        btnJoinGroup.setOnClickListener(view -> {
+            closeFabMenu();
+            promptJoinGroup();
+        });
+
+        btnCreateGroup.setOnClickListener(view -> {
+            closeFabMenu();
+            promptGroupName();
+        });
 
         RecyclerView rv = findViewById(R.id.groupRecyclerView);
         rv.setLayoutManager(new LinearLayoutManager(this));
-        groupAdapter = new GroupAdapter(groupList);
-        rv.setAdapter(groupAdapter);
 
+        // ✅ Updated: Use OnGroupClickListener to open GroupDetailActivity
+        groupAdapter = new GroupAdapter(groupList, group -> {
+            Intent intent = new Intent(DashboardActivity.this, GroupDetailActivity.class);
+            intent.putExtra("group_name", group.getName());
+            startActivity(intent);
+        });
+
+        rv.setAdapter(groupAdapter);
         fetchGroups();
 
-        getOnBackPressedDispatcher()
-                .addCallback(this, new OnBackPressedCallback(true) {
-                    @Override public void handleOnBackPressed() {
-                        if (isFabMenuOpen) closeFabMenu();
-                        else finish();
-                    }
-                });
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isFabMenuOpen) closeFabMenu();
+                else finish();
+            }
+        });
     }
 
     private void showSettingsMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Logout").setIcon(R.drawable.ic_logout);
-        popup.setOnMenuItemClickListener(item -> { logoutUser(); return true; });
+        popup.setOnMenuItemClickListener(item -> {
+            logoutUser();
+            return true;
+        });
         popup.show();
     }
 
     private void logoutUser() {
-        getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit()
-                .clear().apply();
+        getSharedPreferences("IOUAppPrefs", MODE_PRIVATE).edit().clear().apply();
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }
@@ -147,11 +152,9 @@ public class DashboardActivity extends AppCompatActivity {
     private void requestOrPickContact() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
                 != PackageManager.PERMISSION_GRANTED) {
-
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.READ_CONTACTS},
                     REQUEST_CONTACT_PERMISSION);
-
         } else {
             startActivityForResult(
                     new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI),
@@ -166,8 +169,8 @@ public class DashboardActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Join Group")
                 .setView(input)
-                .setPositiveButton("Join", (d,i) -> joinGroup(input.getText().toString().trim()))
-                .setNegativeButton("Cancel",null)
+                .setPositiveButton("Join", (d, i) -> joinGroup(input.getText().toString().trim()))
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -177,8 +180,8 @@ public class DashboardActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Create Group")
                 .setView(input)
-                .setPositiveButton("Next", (d,i) -> fetchUsersThenCreate(input.getText().toString().trim()))
-                .setNegativeButton("Cancel",null)
+                .setPositiveButton("Next", (d, i) -> fetchUsersThenCreate(input.getText().toString().trim()))
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -190,8 +193,7 @@ public class DashboardActivity extends AppCompatActivity {
                 c.setRequestMethod("GET");
                 BufferedReader in = new BufferedReader(new InputStreamReader(c.getInputStream()));
                 StringBuilder sb = new StringBuilder();
-                for (String line; (line = in.readLine()) != null; )
-                    sb.append(line);
+                for (String line; (line = in.readLine()) != null; ) sb.append(line);
                 in.close();
 
                 JSONObject resp = new JSONObject(sb.toString());
@@ -199,7 +201,7 @@ public class DashboardActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> showUserSelectionDialog(groupName, arr));
             } catch (Exception e) {
-                Log.e("DashboardActivity", "fetchUsers", e);
+                Log.e("DashboardActivity", "Error fetching users", e);
             }
         }).start();
     }
@@ -207,19 +209,16 @@ public class DashboardActivity extends AppCompatActivity {
     private void showUserSelectionDialog(String groupName, JSONArray arr) {
         List<String> users = new ArrayList<>();
         boolean[] checks = new boolean[arr.length()];
-        for (int i = 0; i < arr.length(); i++) {
-            users.add(arr.optString(i));
-        }
+        for (int i = 0; i < arr.length(); i++) users.add(arr.optString(i));
         String[] userArray = users.toArray(new String[0]);
         Set<String> picked = new HashSet<>();
 
         new AlertDialog.Builder(this)
                 .setTitle("Add Members")
-                .setMultiChoiceItems(userArray, checks,
-                        (dlg, idx, checked) -> {
-                            if (checked) picked.add(userArray[idx]);
-                            else picked.remove(userArray[idx]);
-                        })
+                .setMultiChoiceItems(userArray, checks, (dlg, idx, checked) -> {
+                    if (checked) picked.add(userArray[idx]);
+                    else picked.remove(userArray[idx]);
+                })
                 .setPositiveButton("Create", (dlg, w) -> createGroup(groupName, picked))
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -244,20 +243,37 @@ public class DashboardActivity extends AppCompatActivity {
                 }
 
                 int code = c.getResponseCode();
-                new Scanner(c.getInputStream()).useDelimiter("\\A").forEachRemaining(s -> {});
+
+                StringBuilder responseBuilder = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        responseBuilder.append(line);
+                    }
+                }
+
+                c.disconnect();
+
+                JSONObject responseJson = new JSONObject(responseBuilder.toString());
+
                 runOnUiThread(() -> {
                     Toast.makeText(this,
                             code == 200 ? "Group created!" : "Create failed",
-                            Toast.LENGTH_SHORT
-                    ).show();
-                    if (code == 200) fetchGroups();
+                            Toast.LENGTH_SHORT).show();
+
+                    if (code == 200) {
+                        fetchGroups();
+
+                        Intent intent = new Intent(DashboardActivity.this, GroupDetailActivity.class);
+                        intent.putExtra("group_id", responseJson.optString("group_id"));
+                        intent.putExtra("group_name", responseJson.optString("group_name"));
+                        startActivity(intent);
+                    }
                 });
-                c.disconnect();
             } catch (Exception e) {
-                Log.e("DashboardActivity", "createGroup", e);
+                Log.e("DashboardActivity", "Error creating group", e);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Create failed", Toast.LENGTH_SHORT).show()
-                );
+                        Toast.makeText(this, "Create failed", Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
@@ -281,19 +297,19 @@ public class DashboardActivity extends AppCompatActivity {
 
                 int code = c.getResponseCode();
                 new Scanner(c.getInputStream()).useDelimiter("\\A").forEachRemaining(s -> {});
+
                 runOnUiThread(() -> {
                     Toast.makeText(this,
                             code == 200 ? "Joined!" : "Join failed",
-                            Toast.LENGTH_SHORT
-                    ).show();
+                            Toast.LENGTH_SHORT).show();
                     if (code == 200) fetchGroups();
                 });
+
                 c.disconnect();
             } catch (Exception e) {
-                Log.e("DashboardActivity", "joinGroup", e);
+                Log.e("DashboardActivity", "Error joining group", e);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Join failed", Toast.LENGTH_SHORT).show()
-                );
+                        Toast.makeText(this, "Join failed", Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
@@ -315,18 +331,24 @@ public class DashboardActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         groupList.clear();
                         for (int i = 0; i < arr.length(); i++) {
-                            JSONObject g = arr.getJSONObject(i);
-                            groupList.add(new Group(g.getString("group_id"), g.getString("name")));
+                            try {
+                                JSONObject g = arr.getJSONObject(i);
+                                groupList.add(new Group(g.getString("group_id"), g.getString("name")));
+                            } catch (JSONException e) {
+                                Log.e("DashboardActivity", "JSON error", e);
+                            }
                         }
                         groupAdapter.notifyDataSetChanged();
+
+                        // ✅ Scroll to top after new group is added
+                        RecyclerView rv = findViewById(R.id.groupRecyclerView);
+                        rv.scrollToPosition(0);
                     });
                 }
                 c.disconnect();
             } catch (Exception e) {
-                Log.e("DashboardActivity", "fetchGroups", e);
+                Log.e("DashboardActivity", "Error fetching groups", e);
             }
         }).start();
     }
-
-    // ... contact-picking & SMS-invite code unchanged, omitted for brevity ...
 }

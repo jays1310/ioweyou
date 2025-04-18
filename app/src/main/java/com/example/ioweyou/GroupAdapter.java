@@ -4,28 +4,43 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.List;
 
 public class GroupAdapter extends RecyclerView.Adapter<GroupAdapter.GroupViewHolder> {
 
-    private final List<Group> groupList;
+    public interface OnGroupClickListener {
+        void onGroupClick(Group group);
+    }
 
-    public GroupAdapter(List<Group> groupList) {
+    private final List<Group> groupList;
+    private final OnGroupClickListener listener;
+
+    public GroupAdapter(List<Group> groupList, OnGroupClickListener listener) {
         this.groupList = groupList;
+        this.listener = listener;
     }
 
     @NonNull
     @Override
     public GroupViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_group, parent, false);
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.tile_group, parent, false);
         return new GroupViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull GroupViewHolder holder, int position) {
-        holder.groupIdText.setText(groupList.get(position).getGroupId());
+        Group group = groupList.get(position);
+        holder.bind(group);
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onGroupClick(group);
+            }
+        });
     }
 
     @Override
@@ -33,12 +48,16 @@ public class GroupAdapter extends RecyclerView.Adapter<GroupAdapter.GroupViewHol
         return groupList.size();
     }
 
-    static class GroupViewHolder extends RecyclerView.ViewHolder {
-        TextView groupIdText;
+    public static class GroupViewHolder extends RecyclerView.ViewHolder {
+        TextView groupNameText;
 
-        GroupViewHolder(@NonNull View itemView) {
+        public GroupViewHolder(@NonNull View itemView) {
             super(itemView);
-            groupIdText = itemView.findViewById(R.id.text_group_id);
+            groupNameText = itemView.findViewById(R.id.text_group_name); // from tile_group.xml
+        }
+
+        public void bind(Group group) {
+            groupNameText.setText(group.getName());
         }
     }
 }

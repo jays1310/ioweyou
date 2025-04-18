@@ -75,7 +75,7 @@
         tools:ignore="ImageContrastCheck" />
 
     <TextView
-        android:id="@+id/_contact_name"
+        android:id="@+id/contact_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="128dp"
